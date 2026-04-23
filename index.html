@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>URL & Query Params Validator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0c0c14;
+    --surface: #12121c;
+    --border: #1e1e2e;
+    --text: #e2e2e8;
+    --muted: #666;
+    --dim: #555;
+    --dimmer: #333;
+    --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+    --sans: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+    --purple: #6366f1;
+    --purple-light: #c4b5fd;
+    --lavender: #a78bfa;
+    --cyan: #a5f3fc;
+    --pink: #f472b6;
+    --yellow: #fbbf24;
+    --green: #34d399;
+    --green-bright: #4ade80;
+    --red: #f87171;
+    --valid-bg: #0d3320; --valid-border: #16a34a;
+    --warn-bg: #3b2607;  --warn-border: #d97706;
+    --err-bg: #3b0e0e;   --err-border: #dc2626;
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    padding: 32px 16px;
+  }
+
+  .container { max-width: 780px; margin: 0 auto; }
+
+  /* Header */
+  .header { margin-bottom: 32px; }
+  .header-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .logo {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; color: #fff; font-family: var(--mono);
+  }
+  h1 {
+    font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--purple-light), var(--cyan));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .subtitle { color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+  /* Input */
+  .input-wrap { position: relative; margin-bottom: 24px; }
+  .input-label {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--dim); font-size: 13px; font-family: var(--mono); pointer-events: none; z-index: 1;
+  }
+  #url-input {
+    width: 100%; padding: 14px 44px 14px 72px;
+    background: var(--surface); border: 2px solid #222; border-radius: 12px;
+    color: var(--text); font-family: var(--mono); font-size: 14px;
+    outline: none; transition: border-color .25s;
+  }
+  #url-input::placeholder { color: #444; }
+  #url-input:focus { border-color: #6366f166; }
+  .clear-btn {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    background: #222; border: none; color: #888; cursor: pointer;
+    border-radius: 6px; width: 26px; height: 26px;
+    display: none; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700;
+  }
+  .clear-btn:hover { background: #333; color: #ccc; }
+  .clear-btn.visible { display: flex; }
+
+  /* Status Bar */
+  .status-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-radius: 10px; margin-bottom: 20px;
+  }
+  .status-left { display: flex; align-items: center; gap: 10px; }
+  .status-icon { font-size: 20px; }
+  .status-label { font-weight: 700; font-size: 14px; }
+  .status-count { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+
+  /* Badge */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 6px;
+    font-size: 11px; font-weight: 700; font-family: var(--mono);
+    letter-spacing: 0.05em; white-space: nowrap;
+  }
+  .badge-valid  { background: var(--valid-bg); color: var(--green-bright); border: 1px solid #16a34a44; }
+  .badge-warn   { background: var(--warn-bg);  color: var(--yellow);       border: 1px solid #d9770644; }
+  .badge-error  { background: var(--err-bg);   color: var(--red);          border: 1px solid #dc262644; }
+
+  /* Alert Rows */
+  .alert {
+    padding: 10px 14px; border-radius: 6px;
+    font-family: var(--mono); font-size: 12px; margin-bottom: 6px;
+    border-left: 3px solid;
+  }
+  .alert-error  { background: var(--err-bg);  border-color: var(--err-border);  color: var(--red); }
+  .alert-warn   { background: var(--warn-bg); border-color: var(--warn-border); color: var(--yellow); }
+
+  /* URL Breakdown */
+  .breakdown {
+    padding: 16px; background: var(--surface);
+    border-radius: 10px; margin-bottom: 20px; border: 1px solid var(--border);
+  }
+  .section-label {
+    font-size: 11px; color: var(--dim); font-weight: 700;
+    margin-bottom: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .url-parts {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    font-family: var(--mono); font-size: 13px; line-height: 1.8;
+  }
+  .part-protocol { color: var(--pink); }
+  .part-host     { color: var(--text); font-weight: 600; }
+  .part-path     { color: var(--lavender); }
+  .part-query    { color: var(--yellow); }
+  .part-hash     { color: var(--green); }
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;
+  }
+  .legend span {
+    font-size: 10px; padding: 2px 8px; border-radius: 4px;
+  }
+  .legend .l-proto { color: var(--pink);     background: #2a1025; }
+  .legend .l-host  { color: var(--text);     background: var(--border); }
+  .legend .l-path  { color: var(--lavender); background: #1e1030; }
+  .legend .l-query { color: var(--yellow);   background: #2a200e; }
+  .legend .l-hash  { color: var(--green);    background: #0d3320; }
+
+  /* Param Rows */
+  .params-list { display: flex; flex-direction: column; gap: 6px; }
+  .param-row {
+    display: grid; grid-template-columns: 32px 1fr 1fr auto;
+    gap: 12px; padding: 10px 14px;
+    border-radius: 6px; border-left: 3px solid; align-items: start;
+  }
+  .param-row.ok   { background: #16161e; border-color: var(--purple); }
+  .param-row.warn { background: #2a200e; border-color: var(--warn-border); }
+  .param-idx { color: var(--dim); font-family: var(--mono); font-size: 12px; padding-top: 2px; }
+  .param-key { color: var(--purple-light); font-family: var(--mono); font-size: 13px; font-weight: 600; }
+  .param-val { color: var(--cyan); font-family: var(--mono); font-size: 13px; word-break: break-all; }
+  .param-sub { color: var(--muted); font-size: 10px; font-family: var(--mono); margin-top: 2px; }
+  .param-empty { color: var(--dim); font-style: italic; }
+  .param-badges { display: flex; flex-direction: column; gap: 3px; align-items: end; }
+
+  /* Empty & No Params */
+  .empty-state {
+    text-align: center; padding: 48px 0; color: var(--dimmer);
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; font-family: var(--mono); }
+  .empty-state .msg  { font-family: var(--mono); font-size: 13px; }
+
+  .no-params { text-align: center; padding: 24px; color: var(--dim); font-family: var(--mono); font-size: 13px; }
+
+  /* Results fade in */
+  #results { animation: fadeIn .3s ease-out; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .param-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .param-idx { display: none; }
+    .param-badges { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: start; }
+    h1 { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="header-row">
+      <div class="logo">?</div>
+      <h1>URL & Query Params Validator</h1>
+    </div>
+    <p class="subtitle">Cole uma URL abaixo para validar a estrutura e inspecionar cada parâmetro de query string.</p>
+  </div>
+
+  <div class="input-wrap">
+    <span class="input-label">URL →</span>
+    <input id="url-input" type="text" placeholder="https://exemplo.com/api?chave=valor&outro=123" spellcheck="false" autocomplete="off">
+    <button class="clear-btn" id="clear-btn" onclick="clearInput()">✕</button>
+  </div>
+
+  <div id="results"></div>
+  <div id="empty-state" class="empty-state">
+    <div class="icon">?&amp;=</div>
+    <div class="msg">Cole uma URL para começar a análise</div>
+  </div>
+</div>
+
+<script>
+const input = document.getElementById('url-input');
+const clearBtn = document.getElementById('clear-btn');
+const resultsEl = document.getElementById('results');
+const emptyEl = document.getElementById('empty-state');
+let debounce;
+
+input.addEventListener('input', () => {
+  clearTimeout(debounce);
+  clearBtn.classList.toggle('visible', input.value.length > 0);
+  debounce = setTimeout(analyze, 300);
+});
+
+function clearInput() {
+  input.value = '';
+  clearBtn.classList.remove('visible');
+  resultsEl.innerHTML = '';
+  emptyEl.style.display = '';
+  input.focus();
+}
+
+function analyze() {
+  const raw = input.value.trim();
+  if (!raw) { resultsEl.innerHTML = ''; emptyEl.style.display = ''; return; }
+  emptyEl.style.display = 'none';
+
+  const r = parseURL(raw);
+  render(r, raw);
+}
+
+function parseURL(raw) {
+  const r = { isValid:false, protocol:null, host:null, pathname:null, search:null, hash:null, params:[], warnings:[], errors:[] };
+  let inp = raw.trim();
+
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(inp)) {
+    if (inp.includes('.') && !inp.startsWith('//')) {
+      inp = 'https://' + inp;
+      r.warnings.push("Protocolo ausente — adicionado 'https://' automaticamente.");
+    }
+  }
+
+  try {
+    const url = new URL(inp);
+    r.isValid = true;
+    r.protocol = url.protocol;
+    r.host = url.host;
+    r.pathname = url.pathname;
+    r.search = url.search;
+    r.hash = url.hash;
+
+    const seen = {};
+    url.searchParams.forEach((value, key) => {
+      const entry = { key, value, warnings: [] };
+      if (seen[key]) entry.warnings.push('Chave duplicada');
+      seen[key] = true;
+      if (!value) entry.warnings.push('Valor vazio');
+      if (/%25[0-9A-Fa-f]{2}/.test(value)) entry.warnings.push('Possível dupla codificação (double-encoded)');
+      r.params.push(entry);
+    });
+
+    if (url.search && url.search.includes('&&')) r.warnings.push("Separador duplo '&&' encontrado na query string.");
+    if (url.search && url.search.indexOf('?', 1) > -1) r.warnings.push("Múltiplos '?' encontrados — apenas o primeiro é interpretado.");
+    if (url.hash && url.search && raw.indexOf('#') < raw.indexOf('?')) r.warnings.push("Hash '#' aparece antes da query string '?' — parâmetros podem ser ignorados.");
+    if (inp.length > 2048) r.warnings.push('URL excede 2048 caracteres — pode causar problemas em alguns navegadores/servidores.');
+    if (r.params.length === 0 && url.search) r.warnings.push('Query string presente mas sem parâmetros válidos.');
+  } catch (e) {
+    r.errors.push('URL inválida: ' + e.message);
+  }
+  return r;
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function badge(type, text) {
+  const icons = { valid:'✓', warn:'⚠', error:'✕' };
+  const cls = { valid:'badge-valid', warn:'badge-warn', error:'badge-error' };
+  return `<span class="badge ${cls[type]}"><span style="font-size:13px">${icons[type]}</span>${esc(text)}</span>`;
+}
+
+function render(r, raw) {
+  const hasParamWarns = r.params.some(p => p.warnings.length > 0);
+  const status = !r.isValid ? 'error' : (r.warnings.length > 0 || hasParamWarns) ? 'warn' : 'valid';
+  const labels = { valid:'VÁLIDO', warn:'ATENÇÃO', error:'INVÁLIDO' };
+  const icons  = { valid:'✓', warn:'⚠', error:'✕' };
+  const colors = { valid:'var(--green-bright)', warn:'var(--yellow)', error:'var(--red)' };
+  const bgs    = { valid:'var(--valid-bg)', warn:'var(--warn-bg)', error:'var(--err-bg)' };
+  const borders = { valid:'#16a34a44', warn:'#d9770644', error:'#dc262644' };
+
+  // Update input border
+  input.style.borderColor = { valid:'#16a34a66', warn:'#d9770666', error:'#dc262666' }[status];
+
+  let html = '';
+
+  // Status bar
+  html += `<div class="status-bar" style="background:${bgs[status]};border:1px solid ${borders[status]}">
+    <div class="status-left"><span class="status-icon">${icons[status]}</span><span class="status-label" style="color:${colors[status]}">${labels[status]}</span></div>
+    <span class="status-count">${r.params.length} param${r.params.length !== 1 ? 's' : ''}</span>
+  </div>`;
+
+  // Errors
+  r.errors.forEach(e => { html += `<div class="alert alert-error">${esc(e)}</div>`; });
+
+  // Breakdown
+  if (r.isValid) {
+    html += `<div class="breakdown">
+      <div class="section-label">Decomposição da URL</div>
+      <div class="url-parts">
+        <span class="part-protocol">${esc(r.protocol)}//</span>
+        <span class="part-host">${esc(r.host)}</span>
+        <span class="part-path">${esc(r.pathname)}</span>
+        ${r.search ? `<span class="part-query">${esc(r.search)}</span>` : ''}
+        ${r.hash ? `<span class="part-hash">${esc(r.hash)}</span>` : ''}
+      </div>
+      <div class="legend">
+        <span class="l-proto">protocolo</span>
+        <span class="l-host">host</span>
+        <span class="l-path">path</span>
+        ${r.search ? '<span class="l-query">query</span>' : ''}
+        ${r.hash ? '<span class="l-hash">hash</span>' : ''}
+      </div>
+    </div>`;
+  }
+
+  // Global warnings
+  if (r.warnings.length) {
+    r.warnings.forEach(w => { html += `<div class="alert alert-warn">⚠ ${esc(w)}</div>`; });
+    html += '<div style="margin-bottom:14px"></div>';
+  }
+
+  // Params
+  if (r.params.length) {
+    html += `<div class="section-label">Parâmetros (${r.params.length})</div><div class="params-list">`;
+    r.params.forEach((p, i) => {
+      const hasW = p.warnings.length > 0;
+      const keyHtml = p.key ? esc(p.key) : '<span class="param-empty">(vazio)</span>';
+      const valHtml = p.value ? esc(p.value) : '<span class="param-empty">(vazio)</span>';
+      const badges = hasW
+        ? p.warnings.map(w => badge('warn', w)).join('')
+        : badge('valid', 'OK');
+
+      html += `<div class="param-row ${hasW ? 'warn' : 'ok'}">
+        <span class="param-idx">${String(i+1).padStart(2,'0')}</span>
+        <div><div class="param-key">${keyHtml}</div><div class="param-sub">chave</div></div>
+        <div><div class="param-val">${valHtml}</div><div class="param-sub">valor</div></div>
+        <div class="param-badges">${badges}</div>
+      </div>`;
+    });
+    html += '</div>';
+  } else if (r.isValid && !r.search) {
+    html += '<div class="no-params">Nenhum parâmetro de query string encontrado.</div>';
+  }
+
+  resultsEl.innerHTML = html;
+}
+</script>
+
+</body>
+</html>
